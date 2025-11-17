@@ -59,8 +59,26 @@ data <- data |> clean_names()
 ```
 
 ```{r}
-data |> filter(entity == "United Kingdom") |> 
+data |> filter(entity == "Costa Rica") |> 
 ggplot(aes(x=year,annual_co2_emissions)) +
   geom_line()
 ```
+
+```{r}
+data <- combined_data |>
+  
+  filter(!is.na(Year)) |>
+  
+  # 3. Remove exact duplicate rows
+  distinct() |>
+  
+  # 4. Remove columns that are completely empty (all NA)
+  select(where(~ !all(is.na(.))))
+```
+
+```{r}
+write_csv(data, "data/data_processed/combined_energy_data.csv")
+```
+
+
 
