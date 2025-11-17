@@ -1,0 +1,66 @@
+---
+title: "FDS_CW_Initial"
+output: pdf_document
+---
+
+```{r message=FALSE}
+library(tidyverse)
+library(plotly)
+library(jsonlite)
+library(readxl)
+library(janitor)
+```
+
+
+```{r}
+# Annual co2 emissions data
+annual_emissions <- read_csv(
+  "data/data_raw/annual-co2-emissions-per-country.csv",show_col_types = FALSE
+  )
+
+# Per Capita Emissions
+per_capita_emissions <- read_csv(
+  "data/data_raw/co-emissions-per-capita.csv",show_col_types = FALSE
+  )
+
+# Nuclear Energy Generation
+nuclear_gen <- read_csv(
+  "data/data_raw/nuclear-energy-generation.csv",show_col_types = FALSE
+  )
+
+# Per apita Energy Consumption
+per_capita_consumption <- read_csv(
+  "data/data_raw/per-capita-energy-stacked.csv",show_col_types = FALSE
+  )
+
+# Per Capita Nuclear Energy Usage
+nuclear_usage <- read_csv(
+  "data/data_raw/per-capita-nuclear.csv",show_col_types = FALSE
+  )
+
+# Share of Energy that is from renewable sources
+renewable_energy_share <- read_csv(
+  "data/data_raw/share-electricity-renewables.csv",show_col_types = FALSE
+  )
+```
+
+```{r}
+# Merged Dataset
+data <-
+  annual_emissions |>
+  inner_join(per_capita_emissions,      by = c("Code", "Year", "Entity")) |>
+  inner_join(nuclear_gen,              by = c("Code", "Year", "Entity")) |>
+  inner_join(per_capita_consumption,   by = c("Code", "Year", "Entity")) |>
+  inner_join(nuclear_usage,            by = c("Code", "Year", "Entity")) |>
+  inner_join(renewable_energy_share,   by = c("Code", "Year", "Entity"))
+
+data <- data |> clean_names()
+  
+```
+
+```{r}
+data |> filter(entity == "United Kingdom") |> 
+ggplot(aes(x=year,annual_co2_emissions)) +
+  geom_line()
+```
+
