@@ -1,0 +1,515 @@
+---
+title: "Is Costa Rica’s Transition Fast Enough for 1.5°C?"
+subtitle: "CO₂, GDP and Transport in a Supposed Green Champion"
+author: "Group PG-20"
+output:
+  xaringan::moon_reader:
+    css: ["default", "default-fonts"]
+    nature:
+      ratio: "16:9"
+      highlightStyle: "github"
+      highlightLines: true
+      countIncrementalSlides: false
+      slideNumberFormat: "%current% / %total%"
+      navigation:
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(janitor)
+library(scales)
+library(ggthemes)
+library(knitr)
+library(kableExtra)
+
+opts_chunk$set(
+	fig.align = "center",
+	fig.height = 7,
+	fig.width = 14,
+	message = FALSE,
+	warning = FALSE,
+	dev = "svg"
+)
+
+theme_set(theme_clean(base_size = 14))
+```
+---
+
+# Plan
+
+1. **Q1 – Are we on a 1.5°C path?**  
+   If we assume a simple linear decline in CO₂ per capita from 2010 to net-zero by 2050, how far is Costa Rica above or below that pathway today?
+
+2. **Q2 – Decoupling compared with similar economies**  
+   Among countries that had similar GDP per capita to Costa Rica in 2010, has Costa Rica done unusually well (or not) at growing income while stabilising or reducing CO₂ per capita?
+
+3. **Q3 – Is transport now the main bottleneck?**  
+   Given that Costa Rica’s electricity is already mostly low-carbon, to what extent are transport emissions now dominating its remaining CO₂ and limiting further progress?
+
+
+---
+
+# Data & approach
+
+- **Country focus:** Costa Rica  
+- **Core data:** CO₂ emissions, CO₂ per capita, GDP per capita, and sectoral emissions  
+- **Source:** Our World in Data – CO₂ and Energy   
+- **Period:** From 1960s to early 2020s, with a focus on 2010 onwards for the 1.5°C pathway
+
+
+**Q1 – 1.5°C pathway**  
+Compare observed CO₂ per capita with a **simple linear net-zero-by-2050 path** starting in 2010.
+
+
+**Q2 & Q3 – Structure and sectors**  
+- Build a **peer group** of countries with similar GDP per capita in 2010  
+- Compare **GDP vs CO₂ per capita changes** and then zoom in on **transport vs other sectors** for Costa Rica
+
+
+
+
+```{r q1_data, include=FALSE}
+# Q1 data + plot object ------------------------------
+
+energy <- read_csv(
+  "data/data_raw/owid_energy.csv",
+  show_col_types = FALSE
+)
+
+co2 <- read_csv(
+  "data/data_raw/owid_co2.csv",
+  show_col_types = FALSE
+)
+
+energy_sel <- energy |>
+  dplyr::select(
+    country, iso_code, year,
+    renewables_share_elec,
+    low_carbon_share_elec,
+    fossil_share_elec,
+    renewables_electricity,  # TWh
+    fossil_electricity       # TWh
+  )
+
+co2_sel <- co2 |>
+  dplyr::select(
+    country, iso_code, year,
+    co2,                     # total CO2 emissions (Mt)
+    co2_per_capita,
+    consumption_co2_per_capita,
+    gdp,
+    population
+  )
+
+cr_energy_co2 <- energy_sel |>
+  left_join(
+    co2_sel,
+    by = c("country", "iso_code", "year")) |>
+  filter(
+    country == "Costa Rica",
+    year >= 1990, year <= 2023)
+
+# Get 2010 baseline (if missing, pick nearest year you actually have)
+cr_base_2010 <- cr_energy_co2 |>
+  filter(year == 2010) |>
+  pull(co2_per_capita) |>
+  first()
+
+cr_pathway <- cr_energy_co2 |>
+  mutate(
+    co2pc_target_15c = dplyr::case_when(
+      year < 2010 ~ NA_real_,
+      year >= 2010 & year <= 2050 ~
+        cr_base_2010 * pmax(0, 1 - (year - 2010) / (2050 - 2010)),
+      year > 2050 ~ 0
+    )
+  )
+
+# Trim years to keep only what matters visually
+cr_trim <- cr_pathway |>
+  filter(year >= 2000)
+
+max_y <- max(cr_trim$co2_per_capita, na.rm = TRUE)
+
+p1 <- ggplot(cr_trim, aes(x = year)) +
+  # Light shaded window only for evaluation period
+  annotate(
+    "rect", xmin = 2010, xmax = 2023,
+    ymin = -Inf, ymax = Inf,
+    fill = "grey90", alpha = 0.5
+  ) +
+  # 1.5°C pathway
+  geom_line(
+    aes(y = co2pc_target_15c),
+    colour = "#D55E00",
+    linewidth = 1.1,
+    linetype = "dashed"
+  ) +
+  # Observed CO2 per capita
+  geom_line(
+    aes(y = co2_per_capita),
+    colour = "#1A1A1A",
+    linewidth = 1.4
+  ) +
+  # Annotation
+  annotate(
+    "text",
+    x = 2015, y = max_y * 0.55,
+    label = "2023 gap: +0.55 t/person\n(~50% above pathway)",
+    hjust = 0, size = 4,
+    colour = "red"
+  ) +
+  geom_hline(
+    yintercept = 0,
+    linetype = "dotted",
+    colour = "grey60"
+  ) +
+  geom_vline(
+    xintercept = 2010,
+    linetype = "dashed",
+    colour = "grey50"
+  ) +
+  annotate(
+    "text", x = 2010, y = 0.15,
+    label = "2010 baseline",
+    angle = 90, vjust = -0.3, hjust = 0,
+    size = 3, colour = "grey40"
+  ) +
+  labs(
+    title = expression(
+      "Costa Rica's " * CO[2] * " per capita vs a 1.5" * degree * "C-compatible pathway"
+    ),
+    subtitle = "Electricity is already low-carbon; reductions now depend on transport and other fossil uses",
+    x = "Year",
+    y = expression("CO"[2] * " emissions per capita (tonnes/person)"),
+    caption = expression("Source: OWID " * CO[2] * " and Energy datasets.")
+  ) +
+  coord_cartesian(ylim = c(0, max_y * 1.05)) +
+  ggthemes::theme_clean(base_size = 14) +
+  theme(
+    legend.position   = "none",
+    panel.grid.minor  = element_blank(),
+    panel.grid.major  = element_line(colour = "grey90"),
+    plot.title        = element_text(face = "bold"),
+    plot.subtitle     = element_text(size = 11, colour = "#555555")
+  )
+
+```
+
+
+
+---
+# Q1 – Are we on a 1.5°C path?
+
+.pull-left[
+
+- I use a **simple stylised pathway**: CO₂ per capita declines **linearly** from 2010 to **net-zero in 2050**.  
+- Costa Rica’s **observed CO₂ per capita** is then plotted against this pathway.
+
+- The **gap in the latest year** shows how far Costa Rica is **above** the 1.5°C-style path, under these assumptions.  
+- This is not a full carbon budget model – it’s a **transparent, back-of-the-envelope benchmark**.
+
+]
+
+
+.pull-right[
+```{r q1_plot, echo=FALSE, fig.height=6, fig.width=8}
+p1
+```
+
+]
+
+
+```{r q2_data, include=FALSE}
+# Uses co2_sel from the earlier q1_data chunk
+
+# 2010 GDP per capita for Costa Rica
+cr_2010 <- co2_sel |>
+  filter(country == "Costa Rica", year == 2010) |>
+  filter(!is.na(gdp), !is.na(population)) |>
+  mutate(gdp_pc_2010 = gdp / population) |>
+  slice(1)
+
+cr_gdp_pc_2010 <- cr_2010$gdp_pc_2010[1]
+
+# Find countries with similar GDP per capita in 2010
+peer_candidates <- co2_sel |>
+  filter(year == 2010, !is.na(gdp), !is.na(population)) |>
+  mutate(gdp_pc_2010 = gdp / population) |>
+  mutate(diff = abs(gdp_pc_2010 - cr_gdp_pc_2010)) |>
+  arrange(diff)
+
+# Take Costa Rica + 5 closest peers
+peer_countries <- peer_candidates |>
+  filter(country != "Costa Rica") |>
+  slice_head(n = 5) |>
+  pull(country)
+
+q2_countries <- c("Costa Rica", peer_countries)
+
+# Panel data, indexing GDP pc and CO2 pc to 2010 = 1
+q2_panel <- co2_sel |>
+  filter(
+    country %in% q2_countries,
+    dplyr::between(year, 2010, 2022)
+  ) |>
+  mutate(
+    gdp_pc = gdp / population,
+    co2_pc = co2_per_capita
+  ) |>
+  group_by(country) |>
+  mutate(
+    base_gdp_pc = gdp_pc[year == 2010][1],
+    base_co2_pc = co2_pc[year == 2010][1],
+    gdp_pc_index = gdp_pc / base_gdp_pc,
+    co2_pc_index = dplyr::if_else(
+      base_co2_pc > 0,
+      co2_pc / base_co2_pc,
+      NA_real_
+    )
+  ) |>
+  ungroup() |>
+  pivot_longer(
+    cols = c(gdp_pc_index, co2_pc_index),
+    names_to = "series",
+    values_to = "index"
+  ) |>
+  mutate(
+    series = dplyr::recode(
+      series,
+      gdp_pc_index = "GDP per capita (2010 = 1)",
+      co2_pc_index = "CO\u2082 per capita (2010 = 1)"
+    )
+  )
+
+# Plot object for Q2
+p2 <- ggplot(q2_panel, aes(x = year, y = index, colour = series)) +
+  geom_hline(yintercept = 1, linetype = "dashed", colour = "grey75") +
+  geom_line(linewidth = 1.1) +
+  facet_wrap(~ country, ncol = 3) +
+  scale_y_continuous(
+    breaks = seq(0.5, 2.5, 0.5),
+    labels = number_format(accuracy = 0.1)
+  ) +
+  scale_x_continuous(breaks = c(2010, 2015, 2020, 2022)) +
+  labs(
+    title    = "GDP vs CO₂ per capita, indexed to 2010 = 1",
+    subtitle = "Costa Rica and countries with similar GDP per capita in 2010",
+    x        = "Year",
+    y        = "Index (2010 = 1)",
+    colour   = NULL
+  ) +
+  theme_clean(base_size = 13) +
+  theme(
+    legend.position = "bottom",
+    strip.text      = element_text(face = "bold")
+  )
+```
+
+```{r include=FALSE}
+decouple_df <- co2_sel |>
+  filter(
+    country %in% q2_countries,
+    year >= 2010,
+    !is.na(gdp), !is.na(population),
+    !is.na(co2_per_capita)
+  ) |>
+  mutate(
+    gdp_per_capita = gdp / population
+  )
+
+summary_decouple <- decouple_df |>
+  group_by(country) |>
+  arrange(year, .by_group = TRUE) |>
+  summarise(
+    start_year     = first(year),
+    end_year       = last(year),
+    gdp_pc_change  = 100 * (last(gdp_per_capita) / first(gdp_per_capita) - 1),
+    co2_pc_change  = 100 * (last(co2_per_capita)   /first(co2_per_capita) - 1),
+    .groups = "drop"
+  ) |>
+  arrange(desc(gdp_pc_change))
+```
+
+
+
+
+---
+
+# Q2 – GDP vs CO₂ change since 2010
+
+.pull-left[
+
+- Here I summarise **total change from 2010 to the latest year** for each country.  
+
+- **GDP_pc_change**: growth in income per person.  
+
+- **CO₂_pc_change**: change in CO₂ per person.  
+
+- Costa Rica should stand out as **strong GDP growth with flat or slightly falling CO₂**, whereas some peers grow both.
+
+]
+
+.pull-right[
+
+```{r q2_table, echo=FALSE}
+summary_decouple |>
+  mutate(
+    gdp_pc_change = sprintf("%+.1f%%", gdp_pc_change),
+    co2_pc_change = sprintf("%+.1f%%", co2_pc_change)
+  ) |>
+  rename(
+    `GDP % change`   = gdp_pc_change,
+    `CO2 % change`   = co2_pc_change,
+    `Start year`     = start_year,
+    `End year`       = end_year
+  ) |>
+  kable(
+    format  = "html",
+    align   = c("l", "c", "c", "r", "r"),
+    caption = "Change in GDP and CO₂ per capita since 2010"
+  ) |>
+  kable_styling(full_width = FALSE, font_size = 12) |>
+  row_spec(
+    which(summary_decouple$country == "Costa Rica"),
+    bold = TRUE
+  )
+```
+
+]
+
+
+---
+## Q2 – Decoupling compared with similar economies
+
+```{r q2_plot_full, echo=FALSE, fig.height=7, fig.width=13}
+p2
+```
+
+
+
+
+
+
+
+
+```{r q3_data, include=FALSE}
+# Q3 – Transport vs other CO2 for Costa Rica, using OWID grapher transport series
+
+# 1) Transport CO2 series from OWID grapher
+transport <- read_csv(
+  "https://ourworldindata.org/grapher/co2-emissions-transport.csv",
+  show_col_types = FALSE
+)
+
+transport_cr <- transport |>
+  rename(
+    country       = 1,   # "Entity"
+    iso_code      = 2,   # "Code"
+    year          = 3,   # "Year"
+    transport_co2 = 4    # emissions from transport, tonnes
+  ) |>
+  filter(country == "Costa Rica")
+
+# 2) Costa Rica total CO2 + population from owid_co2 (already read earlier)
+cr_transport <- co2 |>
+  filter(country == "Costa Rica", year >= 1990) |>
+  select(country, iso_code, year, co2, co2_per_capita, population) |>
+  left_join(transport_cr, by = c("country", "iso_code", "year")) |>
+  mutate(
+    # co2 is in *million* tonnes; transport_co2 is in tonnes
+    transport_share_total = if_else(
+      !is.na(co2) & co2 > 0,
+      transport_co2 / (co2 * 1e6),
+      NA_real_
+    ),
+    transport_co2_pc     = transport_co2 / population,
+    non_transport_co2_pc = ((co2 * 1e6) - transport_co2) / population
+  )
+
+cr_trans_plot <- cr_transport |>
+  filter(!is.na(transport_share_total), year >= 1990)
+
+# 3) Plot: transport share of total CO2
+p3 <- ggplot(cr_trans_plot, aes(x = year)) +
+  geom_line(
+    aes(y = transport_share_total * 100),
+    colour = "#D55E00",
+    linewidth = 1.1
+  ) +
+  geom_hline(yintercept = 0, linetype = "dotted", colour = "grey70") +
+  labs(
+    title = "Transport’s share of Costa Rica’s CO₂ emissions",
+    x     = "Year",
+    y     = "Transport share of total CO₂ (%)"
+  ) +
+  ggthemes::theme_clean(base_size = 12) +
+  theme(
+    panel.grid.minor = element_blank()
+  )
+
+# 4) Long format for per-capita decomposition
+cr_pc_long <- cr_transport |>
+  filter(!is.na(transport_co2_pc), year >= 1990) |>
+  select(year, transport_co2_pc, non_transport_co2_pc) |>
+  pivot_longer(
+    cols      = c(transport_co2_pc, non_transport_co2_pc),
+    names_to  = "sector",
+    values_to = "co2_pc"
+  ) |>
+  mutate(
+    sector = recode(
+      sector,
+      transport_co2_pc     = "Transport",
+      non_transport_co2_pc = "All other sectors"
+    )
+  )
+
+# 5) Plot: CO2 per capita – transport vs other
+p4 <- ggplot(cr_pc_long, aes(x = year, y = co2_pc, colour = sector)) +
+  geom_line(linewidth = 1.1) +
+  scale_colour_manual(values = c(
+    "Transport"         = "#D55E00",
+    "All other sectors" = "#0072B2"
+  )) +
+  labs(
+    title  = "CO₂ per capita from transport vs other sectors",
+    x      = "Year",
+    y      = "Tonnes CO₂ per person",
+    colour = NULL
+  ) +
+  ggthemes::theme_clean(base_size = 12) +
+  theme(
+    legend.position   = "bottom",
+    panel.grid.minor  = element_blank()
+  )
+
+```
+
+
+
+
+---
+# Q3 – Has transport become the main bottleneck?
+
+```{r q3_share_plot, echo=FALSE}
+p3
+```
+
+
+
+---
+# Q3 – CO₂ per capita: transport vs other sectors
+
+```{r q3_decomp_plot, echo=FALSE}
+p4
+```
+
+
+
+
+
+
+
+
+
