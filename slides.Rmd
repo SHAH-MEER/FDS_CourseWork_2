@@ -17,6 +17,7 @@ output:
 
 ```{r setup, include=FALSE}
 library(tidyverse)
+library(plotly)
 library(janitor)
 library(scales)
 library(ggthemes)
@@ -24,17 +25,16 @@ library(knitr)
 library(kableExtra)
 
 opts_chunk$set(
-	fig.align = "center",
-	fig.height = 7,
-	fig.width = 14,
-	message = FALSE,
-	warning = FALSE,
-	dev = "svg"
+  fig.align = "center",
+  fig.height = 6,
+  fig.width = 14,
+  message = FALSE,
+  warning = FALSE,
+  dev = "svg"
 )
 
 theme_set(theme_clean(base_size = 14))
 ```
----
 
 # Plan
 
@@ -46,6 +46,8 @@ theme_set(theme_clean(base_size = 14))
 
 3. **Q3 – Is transport now the main bottleneck?**  
    Given that Costa Rica’s electricity is already mostly low-carbon, to what extent are transport emissions now dominating its remaining CO₂ and limiting further progress?
+   
+4. We then discuss what this implies for whether Costa Rica’s transition is fast enough and where the main bottlenecks lie.
 
 
 ---
@@ -83,7 +85,7 @@ co2 <- read_csv(
 )
 
 energy_sel <- energy |>
-  dplyr::select(
+  select(
     country, iso_code, year,
     renewables_share_elec,
     low_carbon_share_elec,
@@ -93,7 +95,7 @@ energy_sel <- energy |>
   )
 
 co2_sel <- co2 |>
-  dplyr::select(
+  select(
     country, iso_code, year,
     co2,                     # total CO2 emissions (Mt)
     co2_per_capita,
@@ -118,7 +120,7 @@ cr_base_2010 <- cr_energy_co2 |>
 
 cr_pathway <- cr_energy_co2 |>
   mutate(
-    co2pc_target_15c = dplyr::case_when(
+    co2pc_target_15c = case_when(
       year < 2010 ~ NA_real_,
       year >= 2010 & year <= 2050 ~
         cr_base_2010 * pmax(0, 1 - (year - 2010) / (2050 - 2010)),
@@ -220,6 +222,103 @@ p1
 
 ]
 
+---
+# Latin America CO₂ context
+
+Brazil and Mexico dominate regional totals; Costa Rica sits in the low-to-mid range of emitters.
+
+```{r chloropleth, echo=FALSE}
+# OWID data filtered to Latin America + 1991+
+latin_america_countries <- c(
+  "Mexico", "Guatemala", "Belize", "El Salvador", "Honduras",
+  "Nicaragua", "Costa Rica", "Panama",
+  "Cuba", "Jamaica", "Haiti", "Dominican Republic",
+  "Bahamas", "Trinidad and Tobago", "Barbados",
+  "Colombia", "Venezuela", "Guyana", "Suriname",
+  "Ecuador", "Peru", "Brazil", "Bolivia", "Paraguay",
+  "Chile", "Argentina", "Uruguay"
+)
+
+co2_la <- co2 |>
+  filter(
+    country %in% latin_america_countries,
+    year >= 1991,
+    !is.na(iso_code),
+    !is.na(co2),
+    !is.na(co2_per_capita)
+  ) |>
+  mutate(
+    co2_pc = co2_per_capita,
+    hover = if_else(
+      country == "Costa Rica",
+      paste0(
+        "🌟 COSTA RICA 🌟<br>",
+        "Year: ", year, "<br>",
+        "Total CO₂: ", round(co2, 1), " Mt<br>",
+        "CO₂ per capita: ", round(co2_pc, 2), " t"
+      ),
+      paste0(
+        country, "<br>",
+        "Year: ", year, "<br>",
+        "Total CO₂: ", round(co2, 1), " Mt<br>",
+        "CO₂ per capita: ", round(co2_pc, 2), " t"
+      )
+    )
+  )
+
+fig <- co2_la |>
+  plot_ly(
+    type         = "choropleth",
+    locations    = ~iso_code,
+    locationmode = "ISO-3",
+    z            = ~co2,   
+    frame        = ~year,
+    colorscale   = "Magma",
+    colorbar     = list(title = "Annual CO₂ (Mt)"),
+    text         = ~hover,
+    hoverinfo    = "text"
+  ) |>
+  layout(
+    title = "Latin America Annual CO₂ Emissions (1991–2024)",
+    geo = list(
+      scope          = "world",
+      projection     = list(type = "mercator"),
+      showframe      = FALSE,
+      showcoastlines = TRUE,
+      lonaxis        = list(range = c(-120, -30)),
+      lataxis        = list(range = c(-40, 35))
+    )
+  )
+
+cr_marker <- tibble(
+  country = "Costa Rica",
+  lon = -84,
+  lat = 10
+)
+
+fig <- fig |>
+  add_trace(
+    data = cr_marker,
+    type = "scattergeo",
+    lon  = ~lon,
+    lat  = ~lat,
+    mode = "markers+text",
+    text = "Costa Rica",
+    textposition = "top center",
+    marker = list(
+      size = 10,
+      symbol = "star",
+      line = list(width = 1)
+    ),
+    showlegend = FALSE,
+    inherit = FALSE
+  )
+
+```
+
+```{r latin-america-map, echo=FALSE}
+fig
+```
 
 ```{r q2_data, include=FALSE}
 # Uses co2_sel from the earlier q1_data chunk
@@ -252,7 +351,7 @@ q2_countries <- c("Costa Rica", peer_countries)
 q2_panel <- co2_sel |>
   filter(
     country %in% q2_countries,
-    dplyr::between(year, 2010, 2022)
+    between(year, 2010, 2024)
   ) |>
   mutate(
     gdp_pc = gdp / population,
@@ -263,7 +362,7 @@ q2_panel <- co2_sel |>
     base_gdp_pc = gdp_pc[year == 2010][1],
     base_co2_pc = co2_pc[year == 2010][1],
     gdp_pc_index = gdp_pc / base_gdp_pc,
-    co2_pc_index = dplyr::if_else(
+    co2_pc_index = if_else(
       base_co2_pc > 0,
       co2_pc / base_co2_pc,
       NA_real_
@@ -349,6 +448,8 @@ summary_decouple <- decouple_df |>
 
 - Costa Rica should stand out as **strong GDP growth with flat or slightly falling CO₂**, whereas some peers grow both.
 
+- Costa Rica combines **~32% GDP per capita growth** with slightly falling CO₂, whereas some peers trade higher emissions for similar or lower growth.
+
 ]
 
 .pull-right[
@@ -384,7 +485,10 @@ summary_decouple |>
 ## Q2 – Decoupling compared with similar economies
 
 ```{r q2_plot_full, echo=FALSE, fig.height=7, fig.width=13}
-p2
+ggplotly(p2) |> 
+  layout(
+    showlegend = T, 
+    legend = list(orientation = 'h'))
 ```
 
 
@@ -492,23 +596,44 @@ p4 <- ggplot(cr_pc_long, aes(x = year, y = co2_pc, colour = sector)) +
 
 ---
 # Q3 – Has transport become the main bottleneck?
-
+Transport rises to around 71-75% of national CO₂, meaning almost all remaining emissions are now transport-related.
 ```{r q3_share_plot, echo=FALSE}
-p3
+ggplotly(p3)
 ```
-
-
 
 ---
 # Q3 – CO₂ per capita: transport vs other sectors
 
+Other sectors decline or flatten; transport hardly falls, making it the main brake on further progress
 ```{r q3_decomp_plot, echo=FALSE}
-p4
+ggplotly(p4)
 ```
 
 
+---
+### Discussion
 
+- **Q1 – 1.5°C pathway**  
+  2023 CO₂ per capita is ~50% above a simple net-zero-by-2050 path from 2010 → future cuts must be steeper than in the past decade.
 
+- **Q2 – Relative decoupling**  
+  Versus similar-income economies in 2010, Costa Rica combines ~32% GDP per-capita growth with flat/slightly falling CO₂ per capita – better than many peers, but not unique.
+
+- **Q3 – Transport as bottleneck**  
+  Transport now accounts for ~70–75% of Costa Rica’s CO₂; other sectors are flat or falling, so further progress depends mainly on transport.
+
+- **Limitations**  
+  Stylised per-capita pathway; sensitive to baseline year, peer group and production- vs consumption-based emissions, but the overall story is robust.
+
+---
+
+### Conclusion – Is Costa Rica’s transition fast enough for 1.5°C?
+
+- **Overall verdict:** Under our simple 1.5°C-style path, no – Costa Rica is overshooting its implied per-capita emissions level by roughly half, so continuing at the recent pace is not fast enough.
+
+- **Relative performance:** Among similar-income economies since 2010, Costa Rica looks relatively well-behaved – richer without higher CO₂ per person – but still not aligned with rapid global decarbonisation.
+
+- **What must change:** With electricity mostly low-carbon, further progress depends on transport: faster vehicle electrification, cleaner fuels and modal shift. Without that, Costa Rica remains a “green champion” more in branding than in 1.5°C-compatible trajectories.
 
 
 
