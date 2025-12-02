@@ -3,8 +3,6 @@ title: "Is Costa Rica’s Transition Fast Enough for 1.5°C?"
 subtitle: "CO₂ Trends, GDP Growth, and the Transport Bottleneck"
 author: |
   Group PG-20 – MA7419 Coursework
-  University of Leicester
-  Data: Our World in Data (1990–2024)
 output:
   xaringan::moon_reader:
     self_contained: true
@@ -74,17 +72,8 @@ Assess whether transport dominates remaining emissions and therefore determines 
 - Keep the 1.5°C pathway intentionally stylised (illustrative, not prescriptive)
 
 
-
-
-```{r q1_data, include=FALSE}
-# Q1 data + plot object ------------------------------
-
-country_focus <- "Costa Rica"
-pathway_start <- 2010
-net_zero_year <- 2050
-viz_start <- 2000
-year_min <- 1990
-year_max <- 2023
+```{r include=FALSE}
+# Energy and CO2 datasets
 
 energy <- read_csv(
   "data/data_raw/owid_energy.csv",
@@ -114,6 +103,87 @@ co2_sel <- co2 |>
     gdp,
     population
   )
+```
+
+
+---
+### Global CO₂ Emissions per Capita (1991–2024)
+Costa Rica’s per-capita emissions sit in the lower-middle of the global pack – small in totals, but not negligible compared with much larger economies.
+
+
+```{r chloropleth-world-pc, echo=FALSE}
+co2_world <- co2 |>
+  filter(
+    year >= 1991,
+    !is.na(iso_code),
+    !is.na(co2),
+    !is.na(co2_per_capita),
+    population >= 1e6,          # drop tiny states / territories
+    co2_per_capita <= 50        # drop extreme outliers
+  ) |>
+  mutate(
+    co2_pc = co2_per_capita,
+    hover = if_else(
+      country == "Costa Rica",
+      paste0(
+        "🌟 COSTA RICA 🌟<br>",
+        "Year: ", year, "<br>",
+        "Total CO₂: ", round(co2, 1), " Mt<br>",
+        "CO₂ per capita: ", round(co2_pc, 2), " t"
+      ),
+      paste0(
+        country, "<br>",
+        "Year: ", year, "<br>",
+        "Total CO₂: ", round(co2, 1), " Mt<br>",
+        "CO₂ per capita: ", round(co2_pc, 2), " t"
+      )
+    )
+  )
+
+fig_world_pc <- co2_world |>
+  plot_ly(
+    type         = "choropleth",
+    locations    = ~iso_code,
+    locationmode = "ISO-3",
+    z            = ~co2_pc,                 
+    zmin         = 0,
+    zmax         = 25,                     
+    frame        = ~year,
+    colorscale   = "Coolwarm",
+    colorbar     = list(title = "CO₂ per capita (t/person)"),
+    text         = ~hover,
+    hoverinfo    = "text"
+  ) |>
+  layout(
+    geo = list(
+      scope          = "world",
+      projection     = list(type = "flat"),
+      showframe      = FALSE,
+      showcoastlines = TRUE
+    )
+  )
+
+
+
+```
+
+```{r latin-america-map, echo=FALSE, fig.height=6, fig.width=15}
+fig_world_pc
+```
+
+
+
+
+```{r q1_data, include=FALSE}
+# Q1 data + plot object ------------------------------
+
+country_focus <- "Costa Rica"
+pathway_start <- 2010
+net_zero_year <- 2050
+viz_start <- 2000
+year_min <- 1990
+year_max <- 2023
+
 
 cr_energy_co2 <- energy_sel |>
   left_join(
@@ -231,82 +301,6 @@ ggplotly(p1)
 ```
 
 
-
----
-# Latin America CO₂ context
-
-Brazil and Mexico dominate regional totals; Costa Rica sits in the low-to-mid range of emitters.
-
-
-```{r chloropleth, echo=FALSE, fig.height=6, fig.width=16}
-latin_america_countries <- c(
-  "Mexico", "Guatemala", "Belize", "El Salvador", "Honduras",
-  "Nicaragua", "Costa Rica", "Panama",
-  "Cuba", "Jamaica", "Haiti", "Dominican Republic",
-  "Bahamas", "Trinidad and Tobago", "Barbados",
-  "Colombia", "Venezuela", "Guyana", "Suriname",
-  "Ecuador", "Peru", "Brazil", "Bolivia", "Paraguay",
-  "Chile", "Argentina", "Uruguay"
-)
-
-co2_la <- co2 |>
-  filter(
-    country %in% latin_america_countries,
-    year >= 1991,
-    !is.na(iso_code),
-    !is.na(co2),
-    !is.na(co2_per_capita)
-  ) |>
-  mutate(
-    co2_pc = co2_per_capita,
-    hover = if_else(
-      country == "Costa Rica",
-      paste0(
-        "🌟 COSTA RICA 🌟<br>",
-        "Year: ", year, "<br>",
-        "Total CO₂: ", round(co2, 1), " Mt<br>",
-        "CO₂ per capita: ", round(co2_pc, 2), " t"
-      ),
-      paste0(
-        country, "<br>",
-        "Year: ", year, "<br>",
-        "Total CO₂: ", round(co2, 1), " Mt<br>",
-        "CO₂ per capita: ", round(co2_pc, 2), " t"
-      )
-    )
-  )
-
-fig <- co2_la |>
-  plot_ly(
-    type         = "choropleth",
-    locations    = ~iso_code,
-    locationmode = "ISO-3",
-    z            = ~co2,   # total emissions driving the colour
-    frame        = ~year,
-    colorscale   = "Viridis",
-    colorbar     = list(title = "Annual CO₂ (Mt)"),
-    text         = ~hover,
-    hoverinfo    = "text"
-  ) |>
-  layout(
-    title = "Latin America Annual CO₂ Emissions (1991–2024)",
-    geo = list(
-      scope          = "world",
-      projection     = list(type = "mercator"),
-      showframe      = FALSE,
-      showcoastlines = TRUE,
-      lonaxis        = list(range = c(-120, -30)),
-      lataxis        = list(range = c(-40, 35))
-    )
-  )
-
-
-```
-
-```{r latin-america-map, echo=FALSE}
-fig
-
-```
 
 ```{r q2_data, include=FALSE}
 # Uses co2_sel from the earlier q1_data chunk
@@ -707,7 +701,7 @@ p4 <- ggplot(cr_pc_long, aes(x = year, y = co2_pc, colour = sector)) +
 
 ---
 # Q3 – Has transport become the main bottleneck?
-Transport rises to around 71-75% of national CO₂, meaning almost all remaining emissions are now transport-related.
+By 2020s, ~70–75% of Costa Rica’s fossil CO₂ comes from transport – almost everything left is on the road.
 ```{r q3_share_plot, echo=FALSE}
 ggplotly(p3)
 ```
