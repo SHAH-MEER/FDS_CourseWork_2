@@ -36,7 +36,7 @@ opts_chunk$set(
 theme_set(theme_clean(base_size = 14))
 ```
 
-# Plan
+# Research Questions
 
 1. **Q1 – Are we on a 1.5°C path?**  
    If we assume a simple linear decline in CO₂ per capita from 2010 to net-zero by 2050, how far is Costa Rica above or below that pathway today?
@@ -74,6 +74,13 @@ Compare observed CO₂ per capita with a **simple linear net-zero-by-2050 path**
 ```{r q1_data, include=FALSE}
 # Q1 data + plot object ------------------------------
 
+country_focus <- "Costa Rica"
+pathway_start <- 2010
+net_zero_year <- 2050
+viz_start <- 2000
+year_min <- 1990
+year_max <- 2023
+
 energy <- read_csv(
   "data/data_raw/owid_energy.csv",
   show_col_types = FALSE
@@ -81,8 +88,7 @@ energy <- read_csv(
 
 co2 <- read_csv(
   "data/data_raw/owid_co2.csv",
-  show_col_types = FALSE
-)
+  show_col_types = FALSE)
 
 energy_sel <- energy |>
   select(
@@ -90,14 +96,14 @@ energy_sel <- energy |>
     renewables_share_elec,
     low_carbon_share_elec,
     fossil_share_elec,
-    renewables_electricity,  # TWh
-    fossil_electricity       # TWh
+    renewables_electricity,
+    fossil_electricity
   )
 
 co2_sel <- co2 |>
   select(
     country, iso_code, year,
-    co2,                     # total CO2 emissions (Mt)
+    co2,
     co2_per_capita,
     consumption_co2_per_capita,
     gdp,
@@ -107,58 +113,73 @@ co2_sel <- co2 |>
 cr_energy_co2 <- energy_sel |>
   left_join(
     co2_sel,
-    by = c("country", "iso_code", "year")) |>
+    by = c("country", "iso_code", "year")
+  ) |>
   filter(
-    country == "Costa Rica",
-    year >= 1990, year <= 2023)
+    country == country_focus,
+    between(year, year_min, year_max)
+  )
 
-# Get 2010 baseline (if missing, pick nearest year you actually have)
-cr_base_2010 <- cr_energy_co2 |>
-  filter(year == 2010) |>
+cr_base <- cr_energy_co2 |>
+  filter(year == pathway_start) |>
   pull(co2_per_capita) |>
   first()
 
 cr_pathway <- cr_energy_co2 |>
   mutate(
     co2pc_target_15c = case_when(
-      year < 2010 ~ NA_real_,
-      year >= 2010 & year <= 2050 ~
-        cr_base_2010 * pmax(0, 1 - (year - 2010) / (2050 - 2010)),
-      year > 2050 ~ 0
+      year < pathway_start ~ NA_real_,
+      year <= net_zero_year ~
+        cr_base * pmax(0, 1 - (year - pathway_start) /
+          (net_zero_year - pathway_start)),
+      TRUE ~ 0
     )
   )
 
-# Trim years to keep only what matters visually
 cr_trim <- cr_pathway |>
-  filter(year >= 2000)
+  filter(year >= viz_start)
 
 max_y <- max(cr_trim$co2_per_capita, na.rm = TRUE)
+latest_year <- max(cr_trim$year, na.rm = TRUE)
+latest_values <- cr_trim |>
+  filter(year == latest_year) |>
+  summarise(
+    gap = co2_per_capita - co2pc_target_15c,
+    pct = gap / co2pc_target_15c
+  )
+
+gap_value <- latest_values$gap[1]
+pct_value <- latest_values$pct[1]
+pct_label <- if (is.finite(pct_value)) percent(pct_value, accuracy = 1) else "n/a"
+
+gap_label <- sprintf(
+  "%d gap: %+0.2f t/person\n(%s above pathway)",
+  latest_year,
+  gap_value,
+  pct_label
+)
 
 p1 <- ggplot(cr_trim, aes(x = year)) +
-  # Light shaded window only for evaluation period
   annotate(
-    "rect", xmin = 2010, xmax = 2023,
+    "rect", xmin = pathway_start, xmax = latest_year,
     ymin = -Inf, ymax = Inf,
     fill = "grey90", alpha = 0.5
   ) +
-  # 1.5°C pathway
   geom_line(
     aes(y = co2pc_target_15c),
     colour = "#D55E00",
     linewidth = 1.1,
     linetype = "dashed"
   ) +
-  # Observed CO2 per capita
   geom_line(
     aes(y = co2_per_capita),
     colour = "#1A1A1A",
     linewidth = 1.4
   ) +
-  # Annotation
   annotate(
     "text",
-    x = 2015, y = max_y * 0.55,
-    label = "2023 gap: +0.55 t/person\n(~50% above pathway)",
+    x = pathway_start + 5, y = max_y * 0.55,
+    label = gap_label,
     hjust = 0, size = 4,
     colour = "red"
   ) +
@@ -168,12 +189,12 @@ p1 <- ggplot(cr_trim, aes(x = year)) +
     colour = "grey60"
   ) +
   geom_vline(
-    xintercept = 2010,
+    xintercept = pathway_start,
     linetype = "dashed",
     colour = "grey50"
   ) +
   annotate(
-    "text", x = 2010, y = 0.15,
+    "text", x = pathway_start, y = 0.15,
     label = "2010 baseline",
     angle = 90, vjust = -0.3, hjust = 0,
     size = 3, colour = "grey40"
@@ -188,13 +209,13 @@ p1 <- ggplot(cr_trim, aes(x = year)) +
     caption = expression("Source: OWID " * CO[2] * " and Energy datasets.")
   ) +
   coord_cartesian(ylim = c(0, max_y * 1.05)) +
-  ggthemes::theme_clean(base_size = 14) +
+  theme_clean(base_size = 14) +
   theme(
-    legend.position   = "none",
-    panel.grid.minor  = element_blank(),
-    panel.grid.major  = element_line(colour = "grey90"),
-    plot.title        = element_text(face = "bold"),
-    plot.subtitle     = element_text(size = 11, colour = "#555555")
+    legend.position = "none",
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_line(colour = "grey90"),
+    plot.title = element_text(face = "bold"),
+    plot.subtitle = element_text(size = 11, colour = "#555555")
   )
 
 ```
@@ -227,8 +248,8 @@ p1
 
 Brazil and Mexico dominate regional totals; Costa Rica sits in the low-to-mid range of emitters.
 
-```{r chloropleth, echo=FALSE}
-# OWID data filtered to Latin America + 1991+
+
+```{r chloropleth, echo=FALSE} 
 latin_america_countries <- c(
   "Mexico", "Guatemala", "Belize", "El Salvador", "Honduras",
   "Nicaragua", "Costa Rica", "Panama",
@@ -271,9 +292,9 @@ fig <- co2_la |>
     type         = "choropleth",
     locations    = ~iso_code,
     locationmode = "ISO-3",
-    z            = ~co2,   
+    z            = ~co2,   # total emissions driving the colour
     frame        = ~year,
-    colorscale   = "Magma",
+    colorscale   = "Viridis",
     colorbar     = list(title = "Annual CO₂ (Mt)"),
     text         = ~hover,
     hoverinfo    = "text"
@@ -318,6 +339,7 @@ fig <- fig |>
 
 ```{r latin-america-map, echo=FALSE}
 fig
+
 ```
 
 ```{r q2_data, include=FALSE}
