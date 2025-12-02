@@ -1,7 +1,10 @@
 ---
 title: "Is Costa Rica’s Transition Fast Enough for 1.5°C?"
-subtitle: "CO₂, GDP and Transport in a Supposed Green Champion"
-author: "Group PG-20"
+subtitle: "CO₂ Trends, GDP Growth, and the Transport Bottleneck"
+author: |
+  Group PG-20 – MA7419 Coursework
+  University of Leicester
+  Data: Our World in Data (1990–2024)
 output:
   xaringan::moon_reader:
     self_contained: true
@@ -23,6 +26,7 @@ library(scales)
 library(ggthemes)
 library(knitr)
 library(kableExtra)
+library(ggrepel)
 
 opts_chunk$set(
   fig.align = "center",
@@ -38,35 +42,36 @@ theme_set(theme_clean(base_size = 14))
 
 # Research Questions
 
-1. **Q1 – Are we on a 1.5°C path?**  
-   If we assume a simple linear decline in CO₂ per capita from 2010 to net-zero by 2050, how far is Costa Rica above or below that pathway today?
+**Q1 – Is Costa Rica aligned with a 1.5°C pathway?**  
+Compare actual CO₂ per capita to a simple linear 2010–2050 net-zero benchmark.
 
-2. **Q2 – Decoupling compared with similar economies**  
-   Among countries that had similar GDP per capita to Costa Rica in 2010, has Costa Rica done unusually well (or not) at growing income while stabilising or reducing CO₂ per capita?
+**Q2 – Has Costa Rica decoupled growth from emissions better than peers?**  
+Contrast its GDP and CO₂ per capita changes with countries that had similar GDP per capita in 2010.
 
-3. **Q3 – Is transport now the main bottleneck?**  
-   Given that Costa Rica’s electricity is already mostly low-carbon, to what extent are transport emissions now dominating its remaining CO₂ and limiting further progress?
-   
-4. We then discuss what this implies for whether Costa Rica’s transition is fast enough and where the main bottlenecks lie.
+**Q3 – What sector is now the binding constraint?**  
+Assess whether transport dominates remaining emissions and therefore determines the pace of further reductions.
 
 
 ---
 
-# Data & approach
+# Data & methodology
 
-- **Country focus:** Costa Rica  
-- **Core data:** CO₂ emissions, CO₂ per capita, GDP per capita, and sectoral emissions  
-- **Source:** Our World in Data – CO₂ and Energy   
-- **Period:** From 1960s to early 2020s, with a focus on 2010 onwards for the 1.5°C pathway
-
-
-**Q1 – 1.5°C pathway**  
-Compare observed CO₂ per capita with a **simple linear net-zero-by-2050 path** starting in 2010.
+**Data sources**  
+- Our World in Data CO₂ & Energy datasets (1990–2024)  
+- Transport CO₂: OWID “CO₂ emissions from transport” dataset  
+- All headline figures expressed per capita unless noted otherwise
 
 
-**Q2 & Q3 – Structure and sectors**  
-- Build a **peer group** of countries with similar GDP per capita in 2010  
-- Compare **GDP vs CO₂ per capita changes** and then zoom in on **transport vs other sectors** for Costa Rica
+**Analytical approach**  
+- **Q1:** Construct a stylised linear net-zero path (2010 → 2050) and compare it with Costa Rica’s observed CO₂ per capita  
+- **Q2:** Form a peer group with similar 2010 GDP per capita and compare indexed GDP and CO₂ trends  
+- **Q3:** Decompose Costa Rica’s emissions into transport vs all other fossil CO₂ to reveal the binding constraint
+
+
+**Key choices**  
+- Use indexed (2010 = 1) values for fair cross-country comparison  
+- Focus on per capita metrics to avoid population-size bias  
+- Keep the 1.5°C pathway intentionally stylised (illustrative, not prescriptive)
 
 
 
@@ -113,12 +118,10 @@ co2_sel <- co2 |>
 cr_energy_co2 <- energy_sel |>
   left_join(
     co2_sel,
-    by = c("country", "iso_code", "year")
-  ) |>
-  filter(
+    by = c("country", "iso_code", "year")) |>
+    filter(
     country == country_focus,
-    between(year, year_min, year_max)
-  )
+    between(year, year_min, year_max))
 
 cr_base <- cr_energy_co2 |>
   filter(year == pathway_start) |>
@@ -200,14 +203,11 @@ p1 <- ggplot(cr_trim, aes(x = year)) +
     size = 3, colour = "grey40"
   ) +
   labs(
-    title = expression(
-      "Costa Rica's " * CO[2] * " per capita vs a 1.5" * degree * "C-compatible pathway"
-    ),
+    title = "Costa Rica's CO₂ per capita vs a 1.5C -compatible pathway",
     subtitle = "Electricity is already low-carbon; reductions now depend on transport and other fossil uses",
     x = "Year",
-    y = expression("CO"[2] * " emissions per capita (tonnes/person)"),
-    caption = expression("Source: OWID " * CO[2] * " and Energy datasets.")
-  ) +
+    y = "CO₂ emissions per capita (tonnes/person)",
+    caption = "Source: OWID CO₂ and Energy datasets.") +
   coord_cartesian(ylim = c(0, max_y * 1.05)) +
   theme_clean(base_size = 14) +
   theme(
@@ -223,25 +223,14 @@ p1 <- ggplot(cr_trim, aes(x = year)) +
 
 
 ---
-# Q1 – Are we on a 1.5°C path?
+# Q1 – Is Costa Rica on a 1.5°C path?
+Costa Rica’s 2023 CO₂ per capita is ~50% above the stylised 1.5°C-compatible pathway, implying deeper cuts are now required.
 
-.pull-left[
-
-- I use a **simple stylised pathway**: CO₂ per capita declines **linearly** from 2010 to **net-zero in 2050**.  
-- Costa Rica’s **observed CO₂ per capita** is then plotted against this pathway.
-
-- The **gap in the latest year** shows how far Costa Rica is **above** the 1.5°C-style path, under these assumptions.  
-- This is not a full carbon budget model – it’s a **transparent, back-of-the-envelope benchmark**.
-
-]
-
-
-.pull-right[
-```{r q1_plot, echo=FALSE, fig.height=6, fig.width=8}
-p1
+```{r q1_plot, echo=FALSE, fig.height=6, fig.width=14}
+ggplotly(p1)
 ```
 
-]
+
 
 ---
 # Latin America CO₂ context
@@ -249,7 +238,7 @@ p1
 Brazil and Mexico dominate regional totals; Costa Rica sits in the low-to-mid range of emitters.
 
 
-```{r chloropleth, echo=FALSE} 
+```{r chloropleth, echo=FALSE, fig.height=6, fig.width=16}
 latin_america_countries <- c(
   "Mexico", "Guatemala", "Belize", "El Salvador", "Honduras",
   "Nicaragua", "Costa Rica", "Panama",
@@ -311,29 +300,6 @@ fig <- co2_la |>
     )
   )
 
-cr_marker <- tibble(
-  country = "Costa Rica",
-  lon = -84,
-  lat = 10
-)
-
-fig <- fig |>
-  add_trace(
-    data = cr_marker,
-    type = "scattergeo",
-    lon  = ~lon,
-    lat  = ~lat,
-    mode = "markers+text",
-    text = "Costa Rica",
-    textposition = "top center",
-    marker = list(
-      size = 10,
-      symbol = "star",
-      line = list(width = 1)
-    ),
-    showlegend = FALSE,
-    inherit = FALSE
-  )
 
 ```
 
@@ -354,25 +320,42 @@ cr_2010 <- co2_sel |>
 
 cr_gdp_pc_2010 <- cr_2010$gdp_pc_2010[1]
 
-# Find countries with similar GDP per capita in 2010
+# Candidate pool with GDP differences
 peer_candidates <- co2_sel |>
   filter(year == 2010, !is.na(gdp), !is.na(population)) |>
-  mutate(gdp_pc_2010 = gdp / population) |>
-  mutate(diff = abs(gdp_pc_2010 - cr_gdp_pc_2010)) |>
-  arrange(diff)
+  mutate(
+    gdp_pc_2010 = gdp / population,
+    diff = abs(gdp_pc_2010 - cr_gdp_pc_2010)
+  )
 
-# Take Costa Rica + 5 closest peers
-peer_countries <- peer_candidates |>
+# Scatter peers: all countries within ±20% band
+peer_band <- 0.20
+peer_band_countries <- peer_candidates |>
+  filter(
+    country != "Costa Rica",
+    between(
+      gdp_pc_2010,
+      cr_gdp_pc_2010 * (1 - peer_band),
+      cr_gdp_pc_2010 * (1 + peer_band)
+    )
+  ) |>
+  arrange(diff) |>
+  pull(country)
+
+# Line-chart peers: closest five countries by GDP per capita
+peer_top5 <- peer_candidates |>
   filter(country != "Costa Rica") |>
+  arrange(diff) |>
   slice_head(n = 5) |>
   pull(country)
 
-q2_countries <- c("Costa Rica", peer_countries)
+q2_countries_scatter <- unique(c("Costa Rica", peer_band_countries))
+q2_countries_line <- unique(c("Costa Rica", peer_top5))
 
-# Panel data, indexing GDP pc and CO2 pc to 2010 = 1
-q2_panel <- co2_sel |>
+# Panel data for line plot peers, indexing GDP pc and CO2 pc to 2010 = 1
+q2_panel_line <- co2_sel |>
   filter(
-    country %in% q2_countries,
+    country %in% q2_countries_line,
     between(year, 2010, 2024)
   ) |>
   mutate(
@@ -404,34 +387,23 @@ q2_panel <- co2_sel |>
     )
   )
 
-# Plot object for Q2
-p2 <- ggplot(q2_panel, aes(x = year, y = index, colour = series)) +
-  geom_hline(yintercept = 1, linetype = "dashed", colour = "grey75") +
-  geom_line(linewidth = 1.1) +
-  facet_wrap(~ country, ncol = 3) +
-  scale_y_continuous(
-    breaks = seq(0.5, 2.5, 0.5),
-    labels = number_format(accuracy = 0.1)
-  ) +
-  scale_x_continuous(breaks = c(2010, 2015, 2020, 2022)) +
-  labs(
-    title    = "GDP vs CO₂ per capita, indexed to 2010 = 1",
-    subtitle = "Costa Rica and countries with similar GDP per capita in 2010",
-    x        = "Year",
-    y        = "Index (2010 = 1)",
-    colour   = NULL
-  ) +
-  theme_clean(base_size = 13) +
-  theme(
-    legend.position = "bottom",
-    strip.text      = element_text(face = "bold")
+# Add presentation variables for hover text and styling
+q2_panel_line <- q2_panel_line |>
+  mutate(
+    highlight = country == "Costa Rica",
+    hover_text = paste0(
+      "Country: ", country,
+      "<br>", series,
+      "<br>Year: ", year,
+      "<br>Index: ", scales::number(index, accuracy = 0.01)
+    )
   )
 ```
 
 ```{r include=FALSE}
 decouple_df <- co2_sel |>
   filter(
-    country %in% q2_countries,
+    country %in% q2_countries_scatter,
     year >= 2010,
     !is.na(gdp), !is.na(population),
     !is.na(co2_per_capita)
@@ -453,65 +425,182 @@ summary_decouple <- decouple_df |>
   arrange(desc(gdp_pc_change))
 ```
 
+```{r q2_scatter_data, include=FALSE}
+q2_scatter <- summary_decouple |>
+  mutate(
+    highlight = country == "Costa Rica",
+    hover_text = sprintf(
+      "Country: %s<br>GDP change: %+.1f%%%%<br>CO\u2082 change: %+.1f%%%%",
+      country,
+      gdp_pc_change,
+      co2_pc_change
+    ),
+    label = country
+  )
+
+scatter_peers <- q2_scatter |> filter(!highlight)
+scatter_cr <- q2_scatter |> filter(highlight)
+
+scatter_x_range <- range(q2_scatter$gdp_pc_change, na.rm = TRUE)
+scatter_y_range <- range(q2_scatter$co2_pc_change, na.rm = TRUE)
+
+p2_scatter <- plot_ly()
+
+if (nrow(scatter_peers) > 0) {
+  p2_scatter <- p2_scatter |>
+    add_trace(
+      data = scatter_peers,
+      x = ~gdp_pc_change,
+      y = ~co2_pc_change,
+      type = "scatter",
+      mode = "markers+text",
+      text = ~country,
+      textposition = "top center",
+      textfont = list(color = "#666666", size = 11),
+      hovertext = ~hover_text,
+      hoverinfo = "text",
+      marker = list(
+        color = "#AEB6C4",
+        size = 10,
+        opacity = 0.85
+      ),
+      showlegend = FALSE
+    )
+}
+
+if (nrow(scatter_cr) > 0) {
+  p2_scatter <- p2_scatter |>
+    add_trace(
+      data = scatter_cr,
+      x = ~gdp_pc_change,
+      y = ~co2_pc_change,
+      type = "scatter",
+      mode = "markers+text",
+      text = ~country,
+      textposition = "top center",
+      textfont = list(color = "#D55E00", size = 12, family = "Arial Black"),
+      hovertext = ~hover_text,
+      hoverinfo = "text",
+      marker = list(
+        color = "#D55E00",
+        size = 12
+      ),
+      name = "Costa Rica",
+      showlegend = FALSE
+    )
+}
+
+p2_scatter <- p2_scatter |>
+  layout(
+    title = "GDP vs CO₂ per capita change since 2010",
+    xaxis = list(
+      title = "GDP per capita change (%)",
+      zeroline = TRUE,
+      zerolinecolor = "#CCCCCC"
+    ),
+    yaxis = list(
+      title = "CO₂ per capita change (%)",
+      zeroline = TRUE,
+      zerolinecolor = "#CCCCCC"
+    ),
+    shapes = list(
+      list(
+        type = "line",
+        x0 = 0, x1 = 0,
+        y0 = scatter_y_range[1], y1 = scatter_y_range[2],
+        line = list(color = "#B0B0B0", dash = "dot")
+      ),
+      list(
+        type = "line",
+        y0 = 0, y1 = 0,
+        x0 = scatter_x_range[1], x1 = scatter_x_range[2],
+        line = list(color = "#B0B0B0", dash = "dot")
+      )
+    )
+  )
+
+build_series_plot <- function(df_series, y_label, show_cr_legend = FALSE) {
+  peers <- df_series |> filter(country != "Costa Rica")
+  costa <- df_series |> filter(country == "Costa Rica")
+
+  plot <- plot_ly()
+
+  if (nrow(peers) > 0) {
+    for (ctry in unique(peers$country)) {
+      ctry_df <- peers |> filter(country == ctry)
+      plot <- plot |>
+        add_trace(
+          data = ctry_df,
+          x = ~year,
+          y = ~index,
+          type = "scatter",
+          mode = "lines",
+          name = ctry,
+          legendgroup = ctry,
+          line = list(color = "#B3BBCB", width = 2),
+          opacity = 0.45,
+          hovertext = ~hover_text,
+          hoverinfo = "text",
+          showlegend = FALSE
+        )
+    }
+  }
+
+  if (nrow(costa) > 0) {
+    plot <- plot |>
+      add_trace(
+        data = costa,
+        x = ~year,
+        y = ~index,
+        type = "scatter",
+        mode = "lines",
+        name = "Costa Rica",
+        legendgroup = "Costa Rica",
+        line = list(color = "#D55E00", width = 4),
+        hovertext = ~hover_text,
+        hoverinfo = "text",
+        showlegend = show_cr_legend
+      )
+  }
+
+  plot |>
+    layout(
+      yaxis = list(title = y_label, zeroline = FALSE),
+      xaxis = list(title = "Year")
+    )
+}
+
+gdp_series <- q2_panel_line |> filter(series == "GDP per capita (2010 = 1)")
+co2_series <- q2_panel_line |> filter(series == "CO\u2082 per capita (2010 = 1)")
+
+p2_line <- subplot(
+  build_series_plot(gdp_series, "GDP per capita (2010 = 1)", show_cr_legend = TRUE),
+  build_series_plot(co2_series, "CO\u2082 per capita (2010 = 1)"),
+  nrows = 2,
+  shareX = TRUE,
+  titleX = TRUE,
+  titleY = TRUE
+) |>
+  layout(
+    title = "Indexed GDP and CO₂ per capita (2010 = 1)",
+    margin = list(t = 60)
+  )
+```
+
 
 
 
 ---
 
 # Q2 – GDP vs CO₂ change since 2010
+Costa Rica delivers ~32% GDP per capita growth while keeping CO₂ per capita just below 2010 levels—better than many similar-income peers but not unique.
 
-.pull-left[
-
-- Here I summarise **total change from 2010 to the latest year** for each country.  
-
-- **GDP_pc_change**: growth in income per person.  
-
-- **CO₂_pc_change**: change in CO₂ per person.  
-
-- Costa Rica should stand out as **strong GDP growth with flat or slightly falling CO₂**, whereas some peers grow both.
-
-- Costa Rica combines **~32% GDP per capita growth** with slightly falling CO₂, whereas some peers trade higher emissions for similar or lower growth.
-
-]
-
-.pull-right[
-
-```{r q2_table, echo=FALSE}
-summary_decouple |>
-  mutate(
-    gdp_pc_change = sprintf("%+.1f%%", gdp_pc_change),
-    co2_pc_change = sprintf("%+.1f%%", co2_pc_change)
-  ) |>
-  rename(
-    `GDP % change`   = gdp_pc_change,
-    `CO2 % change`   = co2_pc_change,
-    `Start year`     = start_year,
-    `End year`       = end_year
-  ) |>
-  kable(
-    format  = "html",
-    align   = c("l", "c", "c", "r", "r"),
-    caption = "Change in GDP and CO₂ per capita since 2010"
-  ) |>
-  kable_styling(full_width = FALSE, font_size = 12) |>
-  row_spec(
-    which(summary_decouple$country == "Costa Rica"),
-    bold = TRUE
-  )
+```{r q2_scatter_plot, echo=FALSE, fig.height=6, fig.width=14}
+p2_scatter
 ```
 
-]
 
 
----
-## Q2 – Decoupling compared with similar economies
-
-```{r q2_plot_full, echo=FALSE, fig.height=7, fig.width=13}
-ggplotly(p2) |> 
-  layout(
-    showlegend = T, 
-    legend = list(orientation = 'h'))
-```
 
 
 
