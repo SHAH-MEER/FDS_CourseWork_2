@@ -1,0 +1,26 @@
+/* Apply background image to the auto-generated title slide */
+.title-slide {
+  background-image: url("title_bg.png");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* Dark overlay for readability */
+.title-slide::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 0;
+}
+
+/* Make the title/subtitle/author text sit above the overlay */
+.title-slide h1,
+.title-slide h2,
+.title-slide h3,
+.title-slide p {
+  position: relative;
+  z-index: 1;
+}

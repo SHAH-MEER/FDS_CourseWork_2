@@ -6,7 +6,7 @@ author: |
 output:
   xaringan::moon_reader:
     self_contained: true
-    css: ["default", "default-fonts"]
+    css: ["default", "default-fonts", "title-bg.css"]
     nature:
       ratio: "16:9"
       highlightStyle: "github"
@@ -15,6 +15,7 @@ output:
       slideNumberFormat: "%current% / %total%"
       navigation:
 ---
+
 
 ```{r setup, include=FALSE}
 # ---- Packages ----
@@ -35,10 +36,10 @@ fig.height = 6,
 fig.width  = 14,
 message    = FALSE,
 warning    = FALSE,
-dev        = "svg"
-)
+dev        = "svg")
 
 ```
+
 
 # Research questions
 
@@ -51,9 +52,37 @@ dev        = "svg"
 3. **Q3 – Transport bottleneck**  
    With electricity already largely low-carbon, do transport emissions now dominate remaining CO₂ and constrain further progress?
 
+
+---
+
+## Use of Generative AI
+.pull-left[
+- Used generative AI only for:
+  - improving clarity and quality of writing  
+  - refining phrasing and structure  
+  - proofreading for grammatical and typographical errors  
+  - brainstorming and sharpening explanations  
+  - checking general R syntax patterns for consistency  
+
+- **Not used** for:
+  - data wrangling or cleaning  
+  - generating analysis code  
+  - interpreting plots or results  
+  - producing reflective accounts  
+
+]
+
+.pull-right[
+<div style="text-align:center;">
+  <img src="ai-assistant.png" width="250" style="margin-bottom:150px;">
+</div>
+]
+
 ---
 
 # Data & methodology
+
+.pull-left[
 
 **Data sources**  
 - Our World in Data CO₂ and energy datasets (1990–Latest)  
@@ -65,8 +94,13 @@ dev        = "svg"
 - **Q2:** Select peers by 2010 GDP per capita; compare GDP and CO₂ per-capita changes since 2010.  
 - **Q3:** Split fossil CO₂ into **transport vs all other sectors** and track their shares and per-capita trends.
 
+]
 
-
+.pull-right[
+<div style="text-align:center;">
+  <img src="work-flow.png" width="250" style="margin-bottom:150px;">
+</div>
+]
 
 
 ```{r include=FALSE}
@@ -581,41 +615,70 @@ ggplotly(p4)
 
 
 ---
-.pull-left[
+
 ### Discussion
 
+.pull-left[
+
 - **Q1 – 1.5°C pathway**  
-  2023 CO₂ per capita is ~50% above a simple net-zero-by-2050 path.
+  Costa Rica sits ~50% above a simple 1.5°C-consistent path by 2023,  
+  meaning recent cuts are not steep enough.
 
 - **Q2 – Relative decoupling**  
-  ~32% GDP per-capita growth with flat / slightly falling CO₂ per capita.
+  ~32% GDP per-capita growth with flat or slightly falling emissions —  
+  better than many peers but not exceptional.
 
 - **Q3 – Transport bottleneck**  
-  Transport now ~70–75% of fossil CO₂; other sectors mostly flat or falling.
+  Transport now contributes ~70–75% of fossil CO₂, and other sectors  
+  provide limited additional reductions.
 
 - **Limitations**  
-  Stylised per-capita path; results depend on baseline, peer group, and metric.
-
+  Results depend on a stylised per-capita pathway, the peer group  
+  definition, and production-based CO₂ metrics.
+  
 ]
 
+.pull-right[
+<div style="text-align:center;">
+  <img src="communication.png" width="250" style="margin-bottom:150px;">
+</div>
+]
 
 ---
 
+
 ### Conclusion – Is Costa Rica’s transition fast enough for 1.5°C?
+
 .pull-left[
+- **Verdict:**  
+  Costa Rica is ~50% above a simple 1.5°C pathway by 2023.  
+  The transition is **not fast enough**.
 
-- **Verdict:** 
- Under our simple 1.5°C-style path, no – current pace is not enough.
- 
-- **Relative performance:** 
- Better than many similar-income peers, but not aligned with rapid decarbonisation.
+- **Relative performance:**  
+  Stronger than many similar-income peers,  
+  but “better than peers” ≠ **1.5°C-compatible**.
 
-- **Implication:**
- With electricity mostly low-carbon, progress now hinges on transport.
+- **Implication:**  
+  With electricity already low-carbon,  
+  **transport now determines the national trajectory**.
+]
+
+.pull-right[
+
+<div style="text-align:center;">
+  <img src="arrow.png" width="250" style="margin-bottom:150px;">
+</div>
 
 ]
 
+---
 
+# References
+
+1. Ritchie H, Roser M, Rosado P. *CO₂ and Greenhouse Gas Emissions*. Our World in Data; 2024. Available from: https://ourworldindata.org/co2-and-greenhouse-gas-emissions  
+2. Ritchie H, Roser M, Rosado P. *Energy*. Our World in Data; 2024. Available from: https://ourworldindata.org/energy  
+3. Data team at Our World in Data. *Transport CO₂ Emissions*. Our World in Data; 2024. Available from: https://ourworldindata.org/grapher/co2-emissions-transport.csv  
+4. OpenAI. *ChatGPT (GPT-5.1): prompts used for background clarification and drafting support for MA7419 Coursework 2*. Version 5.1. OpenAI; 2025. Available from: https://chat.openai.com/
 
 
 
