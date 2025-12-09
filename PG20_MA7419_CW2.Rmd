@@ -73,9 +73,9 @@ dev        = "svg")
 ]
 
 .pull-right[
-<div style="text-align:center;">
-  <img src="ai-assistant.png" width="250" style="margin-bottom:150px;">
-</div>
+```{r, echo=FALSE, out.width="50%", fig.align='center'}
+knitr::include_graphics("ai-assistant.png")
+```
 ]
 
 ---
@@ -97,9 +97,9 @@ dev        = "svg")
 ]
 
 .pull-right[
-<div style="text-align:center;">
-  <img src="work-flow.png" width="250" style="margin-bottom:150px;">
-</div>
+```{r method_icon, echo=FALSE, out.width="50%", fig.align='center'}
+knitr::include_graphics("work-flow.png")
+```
 ]
 
 
@@ -639,9 +639,11 @@ ggplotly(p4)
 ]
 
 .pull-right[
-<div style="text-align:center;">
-  <img src="communication.png" width="250" style="margin-bottom:150px;">
-</div>
+```{r discussion_icon, echo=FALSE, out.width="50%", fig.align='center'}
+
+knitr::include_graphics("communication.png")
+
+```
 ]
 
 ---
@@ -665,9 +667,11 @@ ggplotly(p4)
 
 .pull-right[
 
-<div style="text-align:center;">
-  <img src="arrow.png" width="250" style="margin-bottom:150px;">
-</div>
+```{r conclusion_icon, echo=FALSE, out.width="50%", fig.align='center'}
+
+knitr::include_graphics("arrow.png")
+
+```
 
 ]
 
